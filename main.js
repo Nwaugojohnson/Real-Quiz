@@ -1,54 +1,69 @@
-const questions = [
-  {
-    question: "Which is largest animal in the world?",
-    answers: [
-      { text: "Shark", correct: false },
-      { text: "Blue whale", correct: true },
-      { text: "Elephant", correct: false },
-      { text: "Giraffe", correct: false },
-    ],
-  },
-  {
-    question: "Which is the smallest country in the world?",
-    answers: [
-      { text: "Vatican", correct: true },
-      { text: "Bhutan", correct: false },
-      { text: "Napal", correct: false },
-      { text: "Shiri Lanka", correct: false },
-    ],
-  },
-  {
-    question: "Which is largest desert in the world?",
-    answers: [
-      { text: "Kalahari", correct: false },
-      { text: "Gobi", correct: false },
-      { text: "Sahara", correct: false },
-      { text: "Antarctica", correct: true },
-    ],
-  },
-  {
-    question: "Which is smallest continent in the world?",
-    answers: [
-      { text: "Asia", correct: false },
-      { text: "Australia", correct: true },
-      { text: "Arctic", correct: false },
-      { text: "Africa", correct: false },
-    ],
-  },
-];
-
 const questionElement = document.getElementById("question");
 const answerButtons = document.getElementById("answer-buttons");
 const nextButton = document.getElementById("next-btn");
 
 let currentQuestionIndex = 0;
 let score = 0;
+let questions = [];
 
-function startQuiz() {
+async function startQuiz() {
   currentQuestionIndex = 0;
   score = 0;
   nextButton.innerHTML = "Next";
-  showQuestion();
+
+  // Fetch questions from API
+  try {
+    questions = await fetchQuizQuestions();
+    showQuestion();
+  } catch (error) {
+    questionElement.innerHTML = "Failed to load questions. Please try again.";
+    console.error("Error fetching questions:", error);
+  }
+}
+
+async function fetchQuizQuestions() {
+  // You can customize the API URL with different parameters
+  const apiUrl =
+    "https://opentdb.com/api.php?amount=10&category=9&difficulty=medium&type=multiple";
+
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    throw new Error("Failed to fetch questions");
+  }
+
+  const data = await response.json();
+
+  // Convert API response to match our quiz format
+  return data.results.map((question) => {
+    // Combine incorrect and correct answers
+    const allAnswers = [
+      ...question.incorrect_answers.map((answer) => ({
+        text: decodeHtmlEntities(answer),
+        correct: false,
+      })),
+      { text: decodeHtmlEntities(question.correct_answer), correct: true },
+    ];
+
+    // Shuffle answers
+    const shuffledAnswers = shuffleArray(allAnswers);
+
+    return {
+      question: decodeHtmlEntities(question.question),
+      answers: shuffledAnswers,
+    };
+  });
+}
+
+// Helper function to decode HTML entities (like &quot; etc.)
+function decodeHtmlEntities(text) {
+  const textArea = document.createElement("textarea");
+  textArea.innerHTML = text;
+  return textArea.value;
+}
+
+// Helper function to shuffle array
+function shuffleArray(array) {
+  return array.sort(() => Math.random() - 0.5);
 }
 
 function showQuestion() {
@@ -56,6 +71,12 @@ function showQuestion() {
   let currentQuestion = questions[currentQuestionIndex];
   let questionNo = currentQuestionIndex + 1;
   questionElement.innerHTML = questionNo + ". " + currentQuestion.question;
+
+  // Add progress bar update here
+  const progressBar = document.getElementById("progress-bar");
+  progressBar.style.width = `${
+    ((currentQuestionIndex + 1) / questions.length) * 100
+  }%`;
 
   currentQuestion.answers.forEach((answer) => {
     const button = document.createElement("button");
@@ -119,4 +140,5 @@ nextButton.addEventListener("click", () => {
   }
 });
 
+// Start the quiz when the page loads
 startQuiz();
